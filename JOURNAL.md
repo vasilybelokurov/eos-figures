@@ -378,3 +378,39 @@
 - Rendered the PDF to PNG and checked the result visually.
 - Re-ran Python bytecode compilation for all package and script files successfully.
 - Updated `README.md` with the new pixel-map generation command.
+
+### Session: Prepare and Publish Public Repository
+
+- User requested a public repository containing everything needed for the project: data, scripts, and plots.
+- Prepared the repository contents:
+  - included reusable Python package `eos_figures/`;
+  - included command-line scripts in `scripts/`;
+  - included generated PDFs in `figures/`;
+  - included derived matched data cache in `data/`;
+  - included `README.md`, `JOURNAL.md`, `requirements.txt`, `.gitignore`, `.gitattributes`, and `LICENSE`.
+- Compressed the derived data cache:
+  - from `data/eos_apogee_dr17_lite_ann.fits` at 119 MB;
+  - to `data/eos_apogee_dr17_lite_ann.fits.gz` at about 84 MB.
+- Verified the gzipped FITS cache with Astropy:
+  - 562,603 rows;
+  - 29 columns.
+- Updated `eos_figures/config.py`:
+  - `DEFAULT_CACHE` now points to `data/eos_apogee_dr17_lite_ann.fits.gz`;
+  - `DEFAULT_OUTDIR` now points to root-level `figures/`.
+- Updated `README.md` for public use:
+  - setup instructions with `requirements.txt`;
+  - included-data description;
+  - rebuild instructions for users with local APOGEE and AstroNN source catalogues;
+  - default plotting commands.
+- Added an MIT `LICENSE`.
+- Updated `.gitignore`:
+  - ignores local caches, bytecode, `.DS_Store`, the private `overleaf-paper/` checkout, and the oversized uncompressed FITS cache;
+  - no longer ignores `figures/`, because plots are part of the public repo.
+- Added `.gitattributes` so FITS and PDF files are treated as binary.
+- Cleaned local generated metadata and bytecode folders before creating the repository.
+- Initialized local Git repository and made the root commit:
+  - Commit: `790d5d2 Prepare public Eos figure repository`.
+- Created and pushed public GitHub repository:
+  - URL: `https://github.com/vasilybelokurov/eos-figures`
+  - Branch: `main`
+- GitHub accepted the data file but warned that `data/eos_apogee_dr17_lite_ann.fits.gz` is larger than the recommended 50 MB threshold. It remains under the 100 MB hard limit, so Git LFS was not required.
