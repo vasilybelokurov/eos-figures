@@ -77,5 +77,6 @@ class Cuts:
     mm_rperi: tuple[float, float] = (1, 17)
     mm_rapo: tuple[float, float] = (1, 17)
     rapor: tuple[float, float] = (0, 45)
+    zmaxr: tuple[float, float] = (0, 35)
     mm_rapo2: tuple[float, float] = (7, 15)
     npix_ecc: int = 71

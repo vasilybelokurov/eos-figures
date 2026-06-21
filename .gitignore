@@ -1,6 +1,7 @@
 .cache/
 .mplconfig/
 .DS_Store
+JOURNAL.md
 data/eos_apogee_dr17_lite_ann.fits
 overleaf-paper/
 __pycache__/

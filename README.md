@@ -26,7 +26,7 @@ The included cache is:
 data/eos_apogee_dr17_lite_ann.fits.gz
 ```
 
-It contains 562,603 matched rows and 31 columns. The cache is gzipped so it can be stored in a normal GitHub repository without Git LFS; Astropy reads it directly.
+It contains 562,603 matched rows and 32 columns. The cache is gzipped so it can be stored in a normal GitHub repository without Git LFS; Astropy reads it directly.
 
 The cache also includes two boolean selection columns used by the plotting masks:
 
@@ -81,6 +81,12 @@ Generate the pixelated mean-property variant of `eos_mg_feh_ecc`:
 
 ```bash
 python scripts/plot_eos_mg_feh_ecc_pixels.py
+```
+
+Generate the `zmax` analogue of the `[Mg/Fe]` and `[Al/Fe]` orbit-slice plot:
+
+```bash
+python scripts/plot_eos_mg_zmax_slice.py
 ```
 
 All scripts write to `figures/` by default. Use `--outdir <path>` to write somewhere else.

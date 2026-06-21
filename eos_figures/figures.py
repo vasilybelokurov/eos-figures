@@ -469,33 +469,83 @@ def plot_mg_feh_ecc_pixels(cache=DEFAULT_CACHE, outdir=DEFAULT_OUTDIR, bins=None
 
 @figure("eos_mg_rap_slice")
 def plot_mg_rap_slice(cache=DEFAULT_CACHE, outdir=DEFAULT_OUTDIR):
+    return _plot_mg_orbit_slice(
+        cache=cache,
+        outdir=outdir,
+        ycol="rap",
+        yrange_name="rapor",
+        ylabel=r"$r_{\rm apo}$ [kpc]",
+        output_name="eos_mg_rap_slice",
+        left_labels=[(0.015, 33, "GS/E"), (0.17, 24, "Eos"), (0.39, 16.5, "Splash")],
+        right_labels=[(-0.13, 38, "GS/E"), (0.05, 20, "Aurora")],
+    )
+
+
+@figure("eos_mg_zmax_slice")
+def plot_mg_zmax_slice(cache=DEFAULT_CACHE, outdir=DEFAULT_OUTDIR):
+    return _plot_mg_orbit_slice(
+        cache=cache,
+        outdir=outdir,
+        ycol="zmax",
+        yrange_name="zmaxr",
+        ylabel=r"$z_{\rm max}$ [kpc]",
+        output_name="eos_mg_zmax_slice",
+        left_labels=[(0.015, 23, "GS/E"), (0.17, 16, "Eos"), (0.39, 10.5, "Splash")],
+        right_labels=[(-0.13, 26, "GS/E"), (0.05, 13, "Aurora")],
+    )
+
+
+def _plot_mg_orbit_slice(
+    cache=DEFAULT_CACHE,
+    outdir=DEFAULT_OUTDIR,
+    ycol="rap",
+    yrange_name="rapor",
+    ylabel=r"$r_{\rm apo}$ [kpc]",
+    output_name="eos_mg_rap_slice",
+    left_labels=None,
+    right_labels=None,
+):
     cat, c, m = load_context(cache)
     fig, ax = setup_axes(2, figsize=(12, 4))
     wf = (cat["fe_h"] > c.feh_tri_cut[0]) & (cat["fe_h"] < c.feh_tri_cut[1])
     ww = m["base"] & (cat["galvt"] < c.vt_sep) & wf
     wf2 = (cat["fe_h"] > -1.5) & (cat["fe_h"] < -1.1)
     ww2 = m["base"] & (cat["galvt"] < c.vt_sep) & wf2
+    y = cat[ycol]
+    finite_y = np.isfinite(y)
+    ww &= finite_y
+    ww2 &= finite_y
+    yrange = getattr(c, yrange_name)
 
     point_size = 5.0
-    ax[0].scatter(cat["mg_fe"][ww], cat["rap"][ww], s=point_size, c="0.0", rasterized=True, linewidths=0)
-    x, _, p95, _, _ = bin_percentile(cat["mg_fe"][ww], cat["rap"][ww], c.mgfer, 14, 95)
+    ax[0].scatter(cat["mg_fe"][ww], y[ww], s=point_size, c="0.0", rasterized=True, linewidths=0)
+    x, _, p95, _, _ = bin_percentile(cat["mg_fe"][ww], y[ww], c.mgfer, 14, 95)
+    _, _, p50, _, _ = bin_percentile(cat["mg_fe"][ww], y[ww], c.mgfer, 14, 50)
     use_curve = x >= -0.1
     ax[0].plot(x[use_curve], p95[use_curve], "k-", lw=1)
+    ax[0].plot(x[use_curve], p50[use_curve], color="tab:red", lw=1)
     ax[0].set_xlim(c.mgfer)
-    ax[0].set_ylim(c.rapor)
+    ax[0].set_ylim(yrange)
     slice_label = {"fontsize": 11, "fontweight": "semibold"}
-    ax[0].text(0.015, 33, "GS/E", **slice_label)
-    ax[0].text(0.17, 24, "Eos", **slice_label)
-    ax[0].text(0.39, 16.5, "Splash", **slice_label)
-    label_axes(ax[0], "[Mg/Fe]", r"$r_{\rm apo}$ [kpc]", f"{c.feh_tri_cut[0]:.1f}<[Fe/H]<{c.feh_tri_cut[1]:.1f}")
+    for xpos, ypos, text in left_labels or []:
+        ax[0].text(xpos, ypos, text, **slice_label)
+    vt_title = rf"$V_\mathrm{{tan}}<{c.vt_sep:g}$ km/s"
+    label_axes(
+        ax[0],
+        "[Mg/Fe]",
+        ylabel,
+        f"{c.feh_tri_cut[0]:.1f}<[Fe/H]<{c.feh_tri_cut[1]:.1f}, {vt_title}",
+    )
 
-    ax[1].scatter(cat["al_fe"][ww2], cat["rap"][ww2], s=point_size, c="0.0", rasterized=True, linewidths=0)
-    x, _, p95, _, _ = bin_percentile(cat["al_fe"][ww2], cat["rap"][ww2], c.alfer, 12, 95)
+    ax[1].scatter(cat["al_fe"][ww2], y[ww2], s=point_size, c="0.0", rasterized=True, linewidths=0)
+    x, _, p95, _, _ = bin_percentile(cat["al_fe"][ww2], y[ww2], c.alfer, 12, 95)
+    _, _, p50, _, _ = bin_percentile(cat["al_fe"][ww2], y[ww2], c.alfer, 12, 50)
     use_curve = x >= -0.5
     ax[1].plot(x[use_curve], p95[use_curve], "k-", lw=1)
+    ax[1].plot(x[use_curve], p50[use_curve], color="tab:red", lw=1)
     ax[1].set_xlim(c.alfer)
-    ax[1].set_ylim(c.rapor)
-    ax[1].text(-0.13, 38, "GS/E", **slice_label)
-    ax[1].text(0.05, 20, "Aurora", **slice_label)
-    label_axes(ax[1], "[Al/Fe]", r"$r_{\rm apo}$ [kpc]", "-1.5<[Fe/H]<-1.1")
-    return save(fig, outdir, "eos_mg_rap_slice")
+    ax[1].set_ylim(yrange)
+    for xpos, ypos, text in right_labels or []:
+        ax[1].text(xpos, ypos, text, **slice_label)
+    label_axes(ax[1], "[Al/Fe]", ylabel, f"-1.5<[Fe/H]<-1.1, {vt_title}")
+    return save(fig, outdir, output_name)
