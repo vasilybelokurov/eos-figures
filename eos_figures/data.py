@@ -145,15 +145,34 @@ def _read_compiled_satellites(list_dir: Path = DEFAULT_LIST_DIR) -> np.ndarray:
     return np.rec.fromarrays([data["ra"], data["dec"]], names="ra,dec")
 
 
-def satellite_out_mask(ra: np.ndarray, dec: np.ndarray, radius_deg: float = 1.0) -> np.ndarray:
+def satellite_out_mask(ra: np.ndarray, dec: np.ndarray, radius_deg: float = 1.0, list_dir: Path = DEFAULT_LIST_DIR) -> np.ndarray:
     """Mimic cutradec(..., /gcs, /dwa, /sdss, /comp), where /comp overwrites loc."""
-    sats = _read_compiled_satellites()
+    sats = _read_compiled_satellites(list_dir)
     stars = SkyCoord(ra * u.deg, dec * u.deg)
     locs = SkyCoord(sats.ra * u.deg, sats.dec * u.deg)
     idx_star, _, _, _ = locs.search_around_sky(stars, radius_deg * u.deg)
     mask = np.ones(len(ra), dtype=bool)
     mask[np.unique(idx_star)] = False
     return mask
+
+
+def gc_member_mask(ra: np.ndarray, dec: np.ndarray, member_path: Path, match_tol_arcsec: float = 1.0, min_prob: float = 0.5) -> np.ndarray:
+    """Flag likely globular-cluster members from the Vasiliev member catalogue."""
+    member_path = Path(member_path).expanduser()
+    with fits.open(member_path, memmap=True) as hdul:
+        data = hdul[1].data
+        good = (
+            np.isfinite(data["RA"])
+            & np.isfinite(data["DEC"])
+            & np.isfinite(data["PROB"])
+            & (data["PROB"] >= min_prob)
+        )
+        gc_ra = np.asarray(data["RA"][good], dtype=float)
+        gc_dec = np.asarray(data["DEC"][good], dtype=float)
+    stars = SkyCoord(ra * u.deg, dec * u.deg)
+    members = SkyCoord(gc_ra * u.deg, gc_dec * u.deg)
+    _, sep, _ = match_coordinates_sky(stars, members)
+    return sep.arcsec < match_tol_arcsec
 
 
 def make_masks(cat, cuts: Cuts = Cuts()) -> dict[str, np.ndarray]:
@@ -179,8 +198,10 @@ def make_masks(cat, cuts: Cuts = Cuts()) -> dict[str, np.ndarray]:
     )
     logg = cat["logg"] < c.logg_lim
     dist = cat["weighted_dist"] < 15e3
-    out = satellite_out_mask(cat["ra"], cat["dec"])
-    base = finite_core & velerr & chemerr & logg & out & dist & noclouds
+    names = set(cat.names)
+    out = np.asarray(cat["satellite_out"], dtype=bool) if "satellite_out" in names else satellite_out_mask(cat["ra"], cat["dec"])
+    no_gc = ~np.asarray(cat["gc_member"], dtype=bool) if "gc_member" in names else np.ones(len(cat), dtype=bool)
+    base = finite_core & velerr & chemerr & logg & out & no_gc & dist & noclouds
 
     encut = (cat["energy"] > c.en_lim[0]) & (cat["energy"] < c.en_lim[1])
     encut_acc = cat["energy"] > c.en_lim_acc

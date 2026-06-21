@@ -25,7 +25,14 @@ The included cache is:
 data/eos_apogee_dr17_lite_ann.fits.gz
 ```
 
-It contains 562,603 matched rows and 29 columns. The cache is gzipped so it can be stored in a normal GitHub repository without Git LFS; Astropy reads it directly.
+It contains 562,603 matched rows and 31 columns. The cache is gzipped so it can be stored in a normal GitHub repository without Git LFS; Astropy reads it directly.
+
+The cache also includes two boolean selection columns used by the plotting masks:
+
+- `satellite_out`: false for stars within 1 degree of objects in `CompiledSatCatalogv2_gabriel.csv`, mimicking the original IDL `cutradec(..., /gcs, /dwa, /sdss, /comp)` removal;
+- `gc_member`: true for likely Vasiliev globular-cluster members, crossmatched within 1 arcsec and requiring membership probability `PROB >= 0.5`.
+
+The base plotting mask requires `satellite_out` and `~gc_member`.
 
 The original full input catalogues used to build the cache were APOGEE allStarLite DR17 and AstroNN DR17. If those files are available locally, the cache can be rebuilt with:
 
@@ -35,6 +42,12 @@ python scripts/build_eos_catalog.py \
   --astronn /path/to/apogee_astroNN-DR17.fits \
   --output data/eos_apogee_dr17_lite_ann.fits.gz \
   --overwrite
+```
+
+If rebuilding the cache from scratch, add the public-repo selection flags with:
+
+```bash
+python scripts/add_eos_cache_masks.py --cache data/eos_apogee_dr17_lite_ann.fits.gz
 ```
 
 ## Generate Figures

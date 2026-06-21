@@ -414,3 +414,32 @@
   - URL: `https://github.com/vasilybelokurov/eos-figures`
   - Branch: `main`
 - GitHub accepted the data file but warned that `data/eos_apogee_dr17_lite_ann.fits.gz` is larger than the recommended 50 MB threshold. It remains under the 100 MB hard limit, so Git LFS was not required.
+
+### Session: Make Globular-Cluster Member Removal Explicit
+
+- User asked whether likely globular-cluster members had been removed, as in the original codebase using the Vasiliev & Baumgardt GC member catalogue.
+- Audited the current Python implementation:
+  - `make_masks()` applied a broad `satellite_out_mask()` based on `CompiledSatCatalogv2_gabriel.csv`, mimicking the IDL `cutradec(..., /gcs, /dwa, /sdss, /comp)` call.
+  - It did not explicitly crossmatch against the Vasiliev GC member catalogue.
+  - The public repository also still depended on the local satellite-list CSV at mask-construction time.
+- Located the local Vasiliev member catalogue:
+  - `/Users/vasilybelokurov/IoA Dropbox/Dr V.A. Belokurov/data/catalogues/gc_members_gaia_vasiliev.fits`
+- Crossmatched the compact cache against that catalogue:
+  - used sky match tolerance `1.0` arcsec;
+  - required Vasiliev membership probability `PROB >= 0.5`;
+  - found 4,970 matched likely GC members;
+  - 4,963 of those were already removed by the broad satellite/cluster sky mask;
+  - 7 survived the broad satellite/cluster sky mask.
+- Updated `eos_figures/data.py`:
+  - added reusable `gc_member_mask()`;
+  - changed `satellite_out_mask()` to accept an explicit list directory;
+  - changed `make_masks()` so it uses cache-resident `satellite_out` and `gc_member` columns when present;
+  - the base plotting mask now requires both `satellite_out` and `~gc_member`.
+- Added reusable maintenance script:
+  - `scripts/add_eos_cache_masks.py`
+  - adds `satellite_out` and `gc_member` columns to the compact cache.
+- Updated the included public cache:
+  - `data/eos_apogee_dr17_lite_ann.fits.gz`
+  - now has 562,603 rows and 31 columns.
+- Regenerated all figures from the updated cache.
+- Updated `README.md` to document the two mask columns and the GC-member removal criterion.
