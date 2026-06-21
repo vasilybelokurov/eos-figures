@@ -9,7 +9,7 @@ DEFAULT_APOGEE = Path("/Users/vasilybelokurov/data/apogee/dr17/allStarLite-dr17-
 DEFAULT_ASTRONN = Path("/Users/vasilybelokurov/data/apogee/dr17/apogee_astroNN-DR17.fits")
 DEFAULT_CACHE = REPO / "data" / "eos_apogee_dr17_lite_ann.fits.gz"
 DEFAULT_OUTDIR = REPO / "figures"
-DEFAULT_LIST_DIR = Path("/Users/vasilybelokurov/Documents/Work/lists")
+DEFAULT_LIST_DIR = REPO / "data"
 
 
 @dataclass(frozen=True)

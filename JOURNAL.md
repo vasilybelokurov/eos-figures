@@ -443,3 +443,13 @@
   - now has 562,603 rows and 31 columns.
 - Regenerated all figures from the updated cache.
 - Updated `README.md` to document the two mask columns and the GC-member removal criterion.
+
+### Session: Include Satellite Mask CSV in Public Repository
+
+- User asked whether `CompiledSatCatalogv2_gabriel.csv` was included in the public repository.
+- Confirmed it was not yet included; only the derived `satellite_out` flag had been baked into the compact cache.
+- Added:
+  - `data/CompiledSatCatalogv2_gabriel.csv`
+- Updated `eos_figures/config.py`:
+  - `DEFAULT_LIST_DIR` now points to the repository-local `data/` directory.
+- Updated `README.md` to list the CSV as included data and to reference the local path in the `satellite_out` description.

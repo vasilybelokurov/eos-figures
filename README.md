@@ -7,6 +7,7 @@ This repository includes:
 - `eos_figures/`: reusable plotting and data helpers;
 - `scripts/`: command-line wrappers for building the catalogue and regenerating figures;
 - `data/eos_apogee_dr17_lite_ann.fits.gz`: compact matched APOGEE DR17 + AstroNN catalogue used by the plotting scripts;
+- `data/CompiledSatCatalogv2_gabriel.csv`: satellite and cluster position list used to reproduce the broad sky mask;
 - `figures/`: generated PDF figures.
 
 ## Setup
@@ -29,7 +30,7 @@ It contains 562,603 matched rows and 31 columns. The cache is gzipped so it can 
 
 The cache also includes two boolean selection columns used by the plotting masks:
 
-- `satellite_out`: false for stars within 1 degree of objects in `CompiledSatCatalogv2_gabriel.csv`, mimicking the original IDL `cutradec(..., /gcs, /dwa, /sdss, /comp)` removal;
+- `satellite_out`: false for stars within 1 degree of objects in `data/CompiledSatCatalogv2_gabriel.csv`, mimicking the original IDL `cutradec(..., /gcs, /dwa, /sdss, /comp)` removal;
 - `gc_member`: true for likely Vasiliev globular-cluster members, crossmatched within 1 arcsec and requiring membership probability `PROB >= 0.5`.
 
 The base plotting mask requires `satellite_out` and `~gc_member`.
