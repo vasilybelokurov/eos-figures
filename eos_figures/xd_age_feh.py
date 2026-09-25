@@ -11,22 +11,49 @@ DEFAULT_MODEL = REPO / "data" / "xd_age_feh_model.json"
 LABELS = ("age", "fe_h")
 
 
-def load_age_feh(cache=DEFAULT_CACHE, mask_name: str = "base_age"):
-    """Return x (n, 2) = (age [Gyr], [Fe/H]), noise cov (n, 2, 2) and metadata.
+def load_age_feh(cache=DEFAULT_CACHE, mask_name: str = "base_age", coord: str = "lin", scale: float = 1.0):
+    """Return x (n, 2), noise cov (n, 2, 2) and metadata for the XD fit.
 
-    Noise: diag(age_total_error^2, fe_h_err^2); AstroNN total age error
-    (model + propagated measurement uncertainty), APOGEE [Fe/H] error, no
-    covariance between the two.
+    Parameters
+    ----------
+    mask_name : str
+        Sample mask from ``make_masks`` ("base_age": sigma_model/age < 0.2 cut;
+        "base_agefin": all finite, positive ages, no age-error cut).
+    coord : {"lin", "log"}
+        "lin": x = (age [Gyr], [Fe/H]); "log": x = (ln(age/Gyr), [Fe/H]) with the
+        age error propagated to first order, sigma_ln = sigma / age.
+    scale : float
+        Multiplier s on the age error: S_aa = (s * age_total_error)^2 (or its
+        log-space equivalent). s = 1 is the quoted AstroNN total error.
+
+    Notes
+    -----
+    Noise: diag((s sigma_tot)^2, fe_h_err^2), no age-[Fe/H] error covariance.
+    ``meta["log_jacobian"]`` holds -ln(age) per star for log coordinates (0 for
+    linear), so that ln p(age, [Fe/H]) = ln p(x) + log_jacobian, which makes
+    held-out scores comparable between coordinate choices.
     """
     cat = load_catalog(cache)
     w = make_masks(cat, Cuts())[mask_name]
-    x = np.column_stack([cat["age"][w], cat["fe_h"][w]]).astype(float)
+    age = np.asarray(cat["age"][w], float)
+    sig = scale * np.asarray(cat["age_total_error"][w], float)
+    feh = np.asarray(cat["fe_h"][w], float)
+    if coord == "log":
+        x0, s0 = np.log(np.where(age > 0, age, np.nan)), sig / age
+    elif coord == "lin":
+        x0, s0 = age, sig
+    else:
+        raise ValueError(f"unknown coord {coord!r}")
+    x = np.column_stack([x0, feh])
     cov = np.zeros((len(x), 2, 2))
-    cov[:, 0, 0] = np.asarray(cat["age_total_error"][w], float) ** 2
+    cov[:, 0, 0] = s0**2
     cov[:, 1, 1] = np.asarray(cat["fe_h_err"][w], float) ** 2
     good = np.isfinite(x).all(1) & np.isfinite(cov).all((1, 2)) & (cov[:, 0, 0] > 0) & (cov[:, 1, 1] > 0)
-    meta = {"mask": mask_name, "n": int(good.sum()), "n_dropped_nonfinite": int((~good).sum()),
-            "labels": list(LABELS), "noise": "diag(age_total_error^2, fe_h_err^2)"}
+    meta = {"mask": mask_name, "coord": coord, "scale": scale, "n": int(good.sum()),
+            "n_dropped_nonfinite": int((~good).sum()),
+            "labels": ["ln_age" if coord == "log" else "age", "fe_h"],
+            "noise": f"diag(({scale:g} * age_total_error)^2, fe_h_err^2)" + (" propagated to ln(age)" if coord == "log" else ""),
+            "log_jacobian": (-np.log(age[good]) if coord == "log" else np.zeros(int(good.sum())))}
     return x[good], cov[good], meta
 
 

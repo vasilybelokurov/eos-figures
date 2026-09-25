@@ -197,6 +197,7 @@ def main() -> None:
         from eos_figures.xd import GaussianMixture
 
         _, _, meta = load_age_feh(a.cache)
+        meta.pop("log_jacobian", None)
         meta.update({"k": k, "selection": "max K-fold held-out log density" if a.k is None else "user override",
                      "k_cv_max": s["k_cv_max"], "k_cv_1se": s["k_cv_1se"], "k_bic": s["k_bic"], "k_aic": s["k_aic"],
                      "train_mean_loglike": best["train_mean_loglike"], "converged": best["converged"],
