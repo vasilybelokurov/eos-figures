@@ -568,3 +568,48 @@ def plot_age_feh_density(cache=DEFAULT_CACHE, outdir=DEFAULT_OUTDIR):
         rf"base, $\sigma_{{\rm age}}/{{\rm age}}<{c.age_err_frac:g}$",
     )
     return save(fig, outdir, "eos_age_feh_density")
+
+
+@figure("eos_age_feh_xd")
+def plot_age_feh_xd(cache=DEFAULT_CACHE, outdir=DEFAULT_OUTDIR, model_path=None):
+    from .xd import load_model
+    from .xd_age_feh import DEFAULT_MODEL, convolved_counts, intrinsic_counts, load_age_feh
+
+    c = Cuts()
+    mix, meta = load_model(model_path or DEFAULT_MODEL)
+    x, cov, _ = load_age_feh(cache, meta["mask"])
+    n = len(x)
+    h, xe, ye = hist2d(x[:, 0], x[:, 1], c.ager, c.fehr_age, c.nage, c.nfeh_age)
+    h_int = intrinsic_counts(mix, n, xe, ye)
+    h_conv = convolved_counts(mix, cov, xe, ye)
+
+    im = log_image(h)
+    vmin, vmax = finite_percentile(im, c.perc1)
+    fig, ax = setup_axes(2, nrows=2, figsize=(8, 6.4), sharex=True, sharey=True)
+    titles = ["Data", f"XD model, deconvolved (K={mix.n_components})", "XD model, convolved with errors"]
+    for a, hh, t in zip(ax[:3], (h, h_int, h_conv), titles):
+        density_panel(a, hh, xe, ye, vmin=vmin, vmax=vmax)
+        a.set_title(t, fontsize=10)
+
+    # log-density difference, i.e. panel 1 minus panel 3; bins with no stars left blank
+    diff = np.where(h > 0, np.log10(np.where(h > 0, h, 1)) - np.log10(np.maximum(h_conv, 1e-300)), np.nan)
+    rim = value_panel(ax[3], diff, xe, ye, vmin=-0.5, vmax=0.5, cmap="RdBu_r")
+    cax = ax[3].inset_axes([0.55, 0.1, 0.4, 0.035])
+    cb = fig.colorbar(rim, cax=cax, orientation="horizontal")
+    cb.set_label(r"$\log_{10}(N_{\rm data}/N_{\rm model})$", fontsize=8)
+    cb.ax.xaxis.set_label_position("top")
+    cb.ax.tick_params(labelsize=7, length=2)
+    good = h_conv > 5
+    chi2 = float((((h - h_conv) ** 2 / h_conv)[good]).sum())
+    ax[3].text(0.03, 0.05, rf"$\chi^2/N_{{\rm bin}}={chi2 / good.sum():.2f}$ ($N_{{\rm model}}>5$)",
+               transform=ax[3].transAxes, fontsize=8)
+    ax[3].set_title("Data − convolved model", fontsize=10)
+    ax[0].text(0.03, 0.05, f"N={n:,}", transform=ax[0].transAxes, fontsize=8)
+    for a in ax:
+        a.set_xlim(c.ager)
+        a.set_ylim(c.fehr_age)
+    for a in ax[2:]:
+        a.set_xlabel("Age, Gyr")
+    for a in ax[::2]:
+        a.set_ylabel("[Fe/H]")
+    return save(fig, outdir, "eos_age_feh_xd")

@@ -40,6 +40,7 @@ ASTRONN_COLUMNS = [
     ("LZ", "Lz"),
     ("AGE", "age"),
     ("AGE_MODEL_ERROR", "age_model_error"),
+    ("AGE_TOTAL_ERROR", "age_total_error"),
     ("GALVT", "galvt"),
     ("ZMAX", "zmax"),
     ("RAP", "rap"),
