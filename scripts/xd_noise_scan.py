@@ -68,20 +68,21 @@ def job(cache, coord, s, fold):
     tr, va = f != fold, f == fold
     res = fit_xd(x[tr], cov[tr], n_components=K, seed=17 * fold + K, **FIT_KW)
     lp = res.mixture.log_prob(x[va], cov[va]) + meta["log_jacobian"][va]
-    stem = OUT / f"{tag(coord, s)}_f{fold}"
-    np.savez_compressed(stem.with_suffix(".npz"), idx=np.flatnonzero(va), lp=lp)
+    # names contain dots (s0.40): build paths explicitly, never with Path.with_suffix
+    name = f"{tag(coord, s)}_f{fold}"
+    np.savez_compressed(OUT / f"{name}.npz", idx=np.flatnonzero(va), lp=lp)
     out = {"coord": coord, "scale": s, "fold": fold, "k": K, "n_iter": res.n_iter, "converged": res.converged,
            "train_mean_loglike": res.mean_loglike, "val_mean_logp_age_feh": float(lp.mean()),
            "mixture": res.mixture.to_dict(), "seconds": time.time() - t0}
-    stem.with_suffix(".json").write_text(json.dumps(out))
-    return stem.name, out
+    (OUT / f"{name}.json").write_text(json.dumps(out))
+    return name, out
 
 
-def run(cache, workers):
+def run(cache, workers, coords=COORDS, scales=SCALES):
     OUT.mkdir(parents=True, exist_ok=True)
-    jobs = [(cache, c, s, f) for c in COORDS for s in SCALES for f in range(N_FOLDS)
+    jobs = [(cache, c, s, f) for c in coords for s in scales for f in range(N_FOLDS)
             if not (OUT / f"{tag(c, s)}_f{f}.json").exists()]
-    n_all = len(COORDS) * len(SCALES) * N_FOLDS
+    n_all = len(coords) * len(scales) * N_FOLDS
     print(f"{n_all} jobs, {n_all - len(jobs)} done, running {len(jobs)} on {workers} workers", flush=True)
     with ProcessPoolExecutor(max_workers=workers) as ex:
         futs = [ex.submit(job, *j) for j in jobs]
@@ -118,7 +119,8 @@ def diagnostics(cache, coord, s, mix):
 
 
 def summary(cache):
-    cfgs = [(c, s) for c in COORDS for s in SCALES]
+    cfgs = sorted({(j.name.split("_s")[0], float(j.name.split("_s")[1].split("_f")[0]))
+                   for j in OUT.glob("*_f0.json")})
     lp_all, info = {}, {}
     for c, s in cfgs:
         files = [OUT / f"{tag(c, s)}_f{f}.npz" for f in range(N_FOLDS)]
@@ -154,8 +156,10 @@ def main() -> None:
     p.add_argument("command", choices=["run", "summary"])
     p.add_argument("--cache", default=DEFAULT_CACHE)
     p.add_argument("--workers", type=int, default=12)
+    p.add_argument("--coords", nargs="+", default=list(COORDS))
+    p.add_argument("--scales", nargs="+", type=float, default=list(SCALES))
     a = p.parse_args()
-    run(a.cache, a.workers) if a.command == "run" else summary(a.cache)
+    run(a.cache, a.workers, a.coords, a.scales) if a.command == "run" else summary(a.cache)
 
 
 if __name__ == "__main__":
