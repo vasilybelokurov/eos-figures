@@ -683,3 +683,29 @@ def plot_age_err_dist(cache=DEFAULT_CACHE, outdir=DEFAULT_OUTDIR):
     ax[3].legend(frameon=False, fontsize=8)
     label_axes(ax[3], r"$\sigma_{\rm age}$ threshold, Gyr", r"N stars with $\sigma_{\rm age}<$ threshold")
     return save(fig, outdir, "eos_age_err_dist")
+
+
+@figure("eos_age_err_consistency")
+def plot_age_err_consistency(cache=DEFAULT_CACHE, outdir=DEFAULT_OUTDIR):
+    """Observed age scatter vs quoted errors per [Fe/H] bin (additive-noise test)."""
+    cat, c, m = load_context(cache)
+    edges = np.arange(-1.0, 0.61, 0.1)
+    cen = 0.5 * (edges[:-1] + edges[1:])
+    fig, ax = setup_axes(3, figsize=(11, 3.4), sharey=True)
+    for a, (name, title) in zip(ax, [("base_age", "all good-age stars"), ("thick_age", r"high-$\alpha$"), ("thin_age", r"low-$\alpha$")]):
+        w = m[name]
+        sd, rt, rm = (np.full(len(cen), np.nan) for _ in range(3))
+        for i in range(len(cen)):
+            s = w & (cat["fe_h"] >= edges[i]) & (cat["fe_h"] < edges[i + 1])
+            if s.sum() >= 100:
+                sd[i] = cat["age"][s].std()
+                rt[i] = np.sqrt(np.mean(cat["age_total_error"][s] ** 2))
+                rm[i] = np.sqrt(np.mean(cat["age_model_error"][s] ** 2))
+        a.plot(cen, sd, "ko-", ms=3, label=r"std(age$_{\rm obs}$)")
+        a.plot(cen, rt, "s--", color="tab:blue", ms=3, label=r"rms $\sigma_{\rm total}$")
+        a.plot(cen, rm, "^:", color="tab:red", ms=3, label=r"rms $\sigma_{\rm model}$")
+        a.set_xlim(edges[0], edges[-1])
+        a.set_ylim(0, 3.5)
+        label_axes(a, "[Fe/H]", "Gyr" if a is ax[0] else "", title)
+    ax[0].legend(frameon=False, fontsize=8, loc="lower center")
+    return save(fig, outdir, "eos_age_err_consistency")
