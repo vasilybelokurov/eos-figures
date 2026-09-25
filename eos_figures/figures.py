@@ -709,3 +709,37 @@ def plot_age_err_consistency(cache=DEFAULT_CACHE, outdir=DEFAULT_OUTDIR):
         label_axes(a, "[Fe/H]", "Gyr" if a is ax[0] else "", title)
     ax[0].legend(frameon=False, fontsize=8, loc="lower center")
     return save(fig, outdir, "eos_age_err_consistency")
+
+
+@figure("eos_age_feh_xd_stability")
+def plot_age_feh_xd_stability(cache=DEFAULT_CACHE, outdir=DEFAULT_OUTDIR, run_dir=None, ks=(12, 16, 20), folds=(0, 1, 2)):
+    """Deconvolved densities of already-fitted models: rows K, columns full-sample fit and CV fold fits."""
+    import json
+
+    from .xd import GaussianMixture
+    from .xd_age_feh import intrinsic_counts, load_age_feh
+
+    c = Cuts()
+    run_dir = Path(run_dir) if run_dir else _repo / "products" / "xd_age_feh"
+    n = len(load_age_feh(cache)[0])
+    xe = np.linspace(*c.ager, c.nage + 1)
+    ye = np.linspace(*c.fehr_age, c.nfeh_age + 1)
+
+    def best(pattern):
+        rows = [json.loads(p.read_text()) for p in run_dir.glob(pattern)]
+        return GaussianMixture.from_dict(max(rows, key=lambda r: r["train_mean_loglike"])["mixture"])
+
+    fig, ax = setup_axes(1 + len(folds), nrows=len(ks), figsize=(3 * (1 + len(folds)), 2.5 * len(ks)), sharex=True, sharey=True)
+    ax = ax.reshape(len(ks), 1 + len(folds))
+    for i, k in enumerate(ks):
+        mixes = [("all stars", best(f"full/K{k:02d}_r*.json"))] + [(f"fold {f} (80%)", best(f"cv/K{k:02d}_f{f}_r*.json")) for f in folds]
+        for j, (lab, mix) in enumerate(mixes):
+            density_panel(ax[i, j], intrinsic_counts(mix, n, xe, ye), xe, ye, percentiles=c.perc1)
+            ax[i, j].set_xlim(c.ager)
+            ax[i, j].set_ylim(c.fehr_age)
+            ax[i, j].set_title(f"K={k}, {lab}", fontsize=9)
+    for a in ax[-1]:
+        a.set_xlabel("Age, Gyr")
+    for a in ax[:, 0]:
+        a.set_ylabel("[Fe/H]")
+    return save(fig, outdir, "eos_age_feh_xd_stability")
