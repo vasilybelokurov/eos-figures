@@ -89,4 +89,10 @@ Generate the `zmax` analogue of the `[Mg/Fe]` and `[Al/Fe]` orbit-slice plot:
 python scripts/plot_eos_mg_zmax_slice.py
 ```
 
+Generate a greyscale Age-`[Fe/H]` density map for base-sample stars with good AstroNN ages (finite, positive, `age_model_error/age < 0.2`):
+
+```bash
+python scripts/plot_eos_age_feh_density.py
+```
+
 All scripts write to `figures/` by default. Use `--outdir <path>` to write somewhere else.

@@ -80,3 +80,4 @@ class Cuts:
     zmaxr: tuple[float, float] = (0, 35)
     mm_rapo2: tuple[float, float] = (7, 15)
     npix_ecc: int = 71
+    nage: int = 60

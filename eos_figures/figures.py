@@ -549,3 +549,22 @@ def _plot_mg_orbit_slice(
         ax[1].text(xpos, ypos, text, **slice_label)
     label_axes(ax[1], "[Al/Fe]", ylabel, f"-1.5<[Fe/H]<-1.1, {vt_title}")
     return save(fig, outdir, output_name)
+
+
+@figure("eos_age_feh_density")
+def plot_age_feh_density(cache=DEFAULT_CACHE, outdir=DEFAULT_OUTDIR):
+    cat, c, m = load_context(cache)
+    fig, ax = setup_axes(1, figsize=(4.5, 3.6))
+    w = m["base_age"]
+    h, xe, ye = hist2d(cat["age"][w], cat["fe_h"][w], c.ager, c.fehr, c.nage, c.nfeh)
+    density_panel(ax[0], h, xe, ye, percentiles=c.perc1)
+    ax[0].set_xlim(c.ager)
+    ax[0].set_ylim(c.fehr)
+    ax[0].text(0.03, 0.05, f"N={w.sum():,}", transform=ax[0].transAxes, fontsize=8)
+    label_axes(
+        ax[0],
+        "Age, Gyr",
+        "[Fe/H]",
+        rf"base, $\sigma_{{\rm age}}/{{\rm age}}<{c.age_err_frac:g}$",
+    )
+    return save(fig, outdir, "eos_age_feh_density")

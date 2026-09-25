@@ -208,6 +208,7 @@ def make_masks(cat, cuts: Cuts = Cuts()) -> dict[str, np.ndarray]:
     encut_acc = cat["energy"] > c.en_lim_acc
     lz_acc = np.abs(cat["lz"]) < c.lz_lim_acc
     age_err = (cat["age_model_error"] / cat["age"]) < c.age_err_frac
+    good_age = np.isfinite(cat["age"]) & (cat["age"] > 0) & age_err
 
     mg_in = cat["mg_fe"] > c.slope_acc * cat["fe_h"] + c.inter_acc
     al_thin = cat["al_fe"] < c.kalfe * cat["fe_h"] + c.offalfe
@@ -222,6 +223,7 @@ def make_masks(cat, cuts: Cuts = Cuts()) -> dict[str, np.ndarray]:
         "base": base,
         "base_en": base & encut,
         "base_en_age": base & encut & age_err,
+        "base_age": base & good_age,
         "acc": base & mg_acc & mg_thin & encut_acc & lz_acc,
         "acc_al": base & mg_acc & mg_thin & al_acc & feh_acc,
         "thin": base & mg_in & mg_thin & al_thin,
