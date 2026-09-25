@@ -634,3 +634,49 @@ def plot_age_feh_xd_deconvolved(cache=DEFAULT_CACHE, outdir=DEFAULT_OUTDIR, mode
         ax[0].text(0.03, 0.05, note, transform=ax[0].transAxes, fontsize=7)
     label_axes(ax[0], "Age, Gyr", "[Fe/H]", f"XD deconvolved density, K={mix.n_components}")
     return save(fig, outdir, output_name)
+
+
+@figure("eos_age_err_dist")
+def plot_age_err_dist(cache=DEFAULT_CACHE, outdir=DEFAULT_OUTDIR):
+    cat, c, m = load_context(cache)
+    w = m["base_age"]
+    age, feh = cat["age"][w], cat["fe_h"][w]
+    tot, mod = cat["age_total_error"][w], cat["age_model_error"][w]
+    fig, ax = setup_axes(2, nrows=2, figsize=(8, 6.4))
+
+    bins = np.linspace(0, 5, 101)
+    ax[0].hist(tot, bins, histtype="step", color="k", label="age_total_error")
+    ax[0].hist(mod, bins, histtype="step", color="tab:red", label="age_model_error")
+    ax[0].legend(frameon=False, fontsize=8)
+    ax[0].set_xlim(0, 5)
+    label_axes(ax[0], r"$\sigma_{\rm age}$, Gyr", "N stars")
+
+    rb = np.linspace(0, 1.2, 97)
+    ax[1].hist(tot / age, rb, histtype="step", color="k", label="total / age")
+    ax[1].hist(mod / age, rb, histtype="step", color="tab:red", label="model / age")
+    ax[1].axvline(c.age_err_frac, color="0.5", ls="--", lw=0.8)
+    ax[1].legend(frameon=False, fontsize=8)
+    ax[1].set_xlim(0, 1.2)
+    label_axes(ax[1], r"$\sigma_{\rm age}/{\rm age}$", "N stars")
+
+    med, xe, ye = stat2d(age, feh, tot, c.ager, c.fehr_age, c.nage, c.nfeh_age, statistic="median")
+    cnt, _, _ = hist2d(age, feh, c.ager, c.fehr_age, c.nage, c.nfeh_age)
+    im = value_panel(ax[2], med, xe, ye, vmin=0.3, vmax=3.0, mask=cnt < 5, cmap="viridis")
+    cax = ax[2].inset_axes([0.55, 0.1, 0.4, 0.035])
+    cb = fig.colorbar(im, cax=cax, orientation="horizontal")
+    cb.set_label(r"median $\sigma_{\rm age,total}$, Gyr", fontsize=8)
+    cb.ax.xaxis.set_label_position("top")
+    cb.ax.tick_params(labelsize=7, length=2)
+    ax[2].set_xlim(c.ager)
+    ax[2].set_ylim(c.fehr_age)
+    label_axes(ax[2], "Age, Gyr", "[Fe/H]")
+
+    thr = np.linspace(0.2, 4, 200)
+    ax[3].plot(thr, [(tot < t).sum() for t in thr], "k-", label="total")
+    ax[3].plot(thr, [(mod < t).sum() for t in thr], color="tab:red", label="model")
+    ax[3].set_yscale("log")
+    ax[3].set_xlim(thr[0], thr[-1])
+    ax[3].grid(alpha=0.3)
+    ax[3].legend(frameon=False, fontsize=8)
+    label_axes(ax[3], r"$\sigma_{\rm age}$ threshold, Gyr", r"N stars with $\sigma_{\rm age}<$ threshold")
+    return save(fig, outdir, "eos_age_err_dist")
