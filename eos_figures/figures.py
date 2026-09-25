@@ -613,3 +613,24 @@ def plot_age_feh_xd(cache=DEFAULT_CACHE, outdir=DEFAULT_OUTDIR, model_path=None)
     for a in ax[::2]:
         a.set_ylabel("[Fe/H]")
     return save(fig, outdir, "eos_age_feh_xd")
+
+
+@figure("eos_age_feh_xd_deconvolved")
+def plot_age_feh_xd_deconvolved(cache=DEFAULT_CACHE, outdir=DEFAULT_OUTDIR, model_path=None, output_name="eos_age_feh_xd_deconvolved", note=""):
+    from .xd import load_model
+    from .xd_age_feh import DEFAULT_MODEL, intrinsic_counts, load_age_feh
+
+    c = Cuts()
+    mix, meta = load_model(model_path or DEFAULT_MODEL)
+    x, _, _ = load_age_feh(cache, meta.get("mask", "base_age"))
+    xe = np.linspace(*c.ager, c.nage + 1)
+    ye = np.linspace(*c.fehr_age, c.nfeh_age + 1)
+    h_int = intrinsic_counts(mix, len(x), xe, ye)
+    fig, ax = setup_axes(1, figsize=(4.5, 3.6))
+    density_panel(ax[0], h_int, xe, ye, percentiles=c.perc1)
+    ax[0].set_xlim(c.ager)
+    ax[0].set_ylim(c.fehr_age)
+    if note:
+        ax[0].text(0.03, 0.05, note, transform=ax[0].transAxes, fontsize=7)
+    label_axes(ax[0], "Age, Gyr", "[Fe/H]", f"XD deconvolved density, K={mix.n_components}")
+    return save(fig, outdir, output_name)

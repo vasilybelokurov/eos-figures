@@ -373,4 +373,4 @@ def save_model(path: Path, mixture: GaussianMixture, meta: dict) -> Path:
 
 def load_model(path: Path) -> tuple[GaussianMixture, dict]:
     d = json.loads(Path(path).read_text())
-    return GaussianMixture.from_dict(d["mixture"]), d["meta"]
+    return GaussianMixture.from_dict(d["mixture"]), d.get("meta", {})
