@@ -552,22 +552,25 @@ def _plot_mg_orbit_slice(
 
 
 @figure("eos_age_feh_density")
-def plot_age_feh_density(cache=DEFAULT_CACHE, outdir=DEFAULT_OUTDIR):
+def plot_age_feh_density(cache=DEFAULT_CACHE, outdir=DEFAULT_OUTDIR, mask_name="base_age", output_name="eos_age_feh_density"):
     cat, c, m = load_context(cache)
     fig, ax = setup_axes(1, figsize=(4.5, 3.6))
-    w = m["base_age"]
+    w = m[mask_name]
     h, xe, ye = hist2d(cat["age"][w], cat["fe_h"][w], c.ager, c.fehr_age, c.nage, c.nfeh_age)
     density_panel(ax[0], h, xe, ye, percentiles=c.perc1)
     ax[0].set_xlim(c.ager)
     ax[0].set_ylim(c.fehr_age)
     ax[0].text(0.03, 0.05, f"N={w.sum():,}", transform=ax[0].transAxes, fontsize=8)
-    label_axes(
-        ax[0],
-        "Age, Gyr",
-        "[Fe/H]",
-        rf"base, $\sigma_{{\rm age}}/{{\rm age}}<{c.age_err_frac:g}$",
-    )
-    return save(fig, outdir, "eos_age_feh_density")
+    title = rf"base, $\sigma_{{\rm age}}/{{\rm age}}<{c.age_err_frac:g}$"
+    if mask_name == "base_age_toterr":
+        title += rf", $\sigma_{{\rm age,tot}}<{c.age_tot_err_max:g}$ Gyr"
+    label_axes(ax[0], "Age, Gyr", "[Fe/H]", title)
+    return save(fig, outdir, output_name)
+
+
+@figure("eos_age_feh_density_toterr")
+def plot_age_feh_density_toterr(cache=DEFAULT_CACHE, outdir=DEFAULT_OUTDIR):
+    return plot_age_feh_density(cache, outdir, mask_name="base_age_toterr", output_name="eos_age_feh_density_toterr")
 
 
 @figure("eos_age_feh_xd")

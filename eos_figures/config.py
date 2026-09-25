@@ -83,3 +83,4 @@ class Cuts:
     nage: int = 60
     fehr_age: tuple[float, float] = (-1.5, 0.4)
     nfeh_age: int = 42
+    age_tot_err_max: float = 2.5

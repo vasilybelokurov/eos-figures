@@ -225,6 +225,7 @@ def make_masks(cat, cuts: Cuts = Cuts()) -> dict[str, np.ndarray]:
         "base_en": base & encut,
         "base_en_age": base & encut & age_err,
         "base_age": base & good_age,
+        "base_age_toterr": base & good_age & (cat["age_total_error"] < c.age_tot_err_max),
         "acc": base & mg_acc & mg_thin & encut_acc & lz_acc,
         "acc_al": base & mg_acc & mg_thin & al_acc & feh_acc,
         "thin": base & mg_in & mg_thin & al_thin,
