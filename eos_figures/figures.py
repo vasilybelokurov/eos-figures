@@ -597,14 +597,14 @@ def plot_age_feh_xd(cache=DEFAULT_CACHE, outdir=DEFAULT_OUTDIR, model_path=None)
     # log-density difference, i.e. panel 1 minus panel 3; bins with no stars left blank
     diff = np.where(h > 0, np.log10(np.where(h > 0, h, 1)) - np.log10(np.maximum(h_conv, 1e-300)), np.nan)
     rim = value_panel(ax[3], diff, xe, ye, vmin=-0.5, vmax=0.5, cmap="RdBu_r")
-    cax = ax[3].inset_axes([0.55, 0.1, 0.4, 0.035])
-    cb = fig.colorbar(rim, cax=cax, orientation="horizontal")
+    cax = ax[3].inset_axes([0.05, 0.08, 0.4, 0.035])
+    cb = fig.colorbar(rim, cax=cax, orientation="horizontal", ticks=[-0.5, 0, 0.5])
     cb.set_label(r"$\log_{10}(N_{\rm data}/N_{\rm model})$", fontsize=8)
     cb.ax.xaxis.set_label_position("top")
     cb.ax.tick_params(labelsize=7, length=2)
     good = h_conv > 5
     chi2 = float((((h - h_conv) ** 2 / h_conv)[good]).sum())
-    ax[3].text(0.03, 0.05, rf"$\chi^2/N_{{\rm bin}}={chi2 / good.sum():.2f}$ ($N_{{\rm model}}>5$)",
+    ax[3].text(0.05, 0.25, rf"$\chi^2/N_{{\rm bin}}={chi2 / good.sum():.2f}$" "\n" rf"($N_{{\rm model}}>5$)",
                transform=ax[3].transAxes, fontsize=8)
     ax[3].set_title("Data − convolved model", fontsize=10)
     ax[0].text(0.03, 0.05, f"N={n:,}", transform=ax[0].transAxes, fontsize=8)
