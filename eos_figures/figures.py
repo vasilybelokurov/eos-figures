@@ -574,17 +574,21 @@ def plot_age_feh_density_toterr(cache=DEFAULT_CACHE, outdir=DEFAULT_OUTDIR):
 
 
 @figure("eos_age_feh_xd")
-def plot_age_feh_xd(cache=DEFAULT_CACHE, outdir=DEFAULT_OUTDIR, model_path=None):
+def plot_age_feh_xd(cache=DEFAULT_CACHE, outdir=DEFAULT_OUTDIR, model_path=None, output_name="eos_age_feh_xd", note=""):
     from .xd import load_model
     from .xd_age_feh import DEFAULT_MODEL, convolved_counts, intrinsic_counts, load_age_feh
 
     c = Cuts()
     mix, meta = load_model(model_path or DEFAULT_MODEL)
-    x, cov, _ = load_age_feh(cache, meta["mask"])
+    coord, scale = meta.get("coord", "lin"), meta.get("scale", 1.0)
+    x, cov, _ = load_age_feh(cache, meta["mask"], coord=coord, scale=scale)
     n = len(x)
-    h, xe, ye = hist2d(x[:, 0], x[:, 1], c.ager, c.fehr_age, c.nage, c.nfeh_age)
-    h_int = intrinsic_counts(mix, n, xe, ye)
-    h_conv = convolved_counts(mix, cov, xe, ye)
+    age = np.exp(x[:, 0]) if coord == "log" else x[:, 0]
+    h, xe, ye = hist2d(age, x[:, 1], c.ager, c.fehr_age, c.nage, c.nfeh_age)
+    # model counts per (linear-age) bin: integrate in the model's own coordinate
+    xe_m = np.log(np.maximum(xe, 0.05)) if coord == "log" else xe
+    h_int = intrinsic_counts(mix, n, xe_m, ye)
+    h_conv = convolved_counts(mix, cov, xe_m, ye)
 
     im = log_image(h)
     vmin, vmax = finite_percentile(im, c.perc1)
@@ -597,16 +601,12 @@ def plot_age_feh_xd(cache=DEFAULT_CACHE, outdir=DEFAULT_OUTDIR, model_path=None)
     # log-density difference, i.e. panel 1 minus panel 3; bins with no stars left blank
     diff = np.where(h > 0, np.log10(np.where(h > 0, h, 1)) - np.log10(np.maximum(h_conv, 1e-300)), np.nan)
     rim = value_panel(ax[3], diff, xe, ye, vmin=-0.5, vmax=0.5, cmap="RdBu_r")
-    cax = ax[3].inset_axes([0.05, 0.08, 0.4, 0.035])
-    cb = fig.colorbar(rim, cax=cax, orientation="horizontal", ticks=[-0.5, 0, 0.5])
+    cb = fig.colorbar(rim, ax=ax[3], pad=0.02, fraction=0.05, ticks=[-0.5, 0, 0.5])
     cb.set_label(r"$\log_{10}(N_{\rm data}/N_{\rm model})$", fontsize=8)
-    cb.ax.xaxis.set_label_position("top")
     cb.ax.tick_params(labelsize=7, length=2)
     good = h_conv > 5
     chi2 = float((((h - h_conv) ** 2 / h_conv)[good]).sum())
-    ax[3].text(0.05, 0.25, rf"$\chi^2/N_{{\rm bin}}={chi2 / good.sum():.2f}$" "\n" rf"($N_{{\rm model}}>5$)",
-               transform=ax[3].transAxes, fontsize=8)
-    ax[3].set_title("Data − convolved model", fontsize=10)
+    ax[3].set_title(rf"Data − convolved model, $\chi^2/N_{{\rm bin}}={chi2 / good.sum():.2f}$ ($N_{{\rm model}}>5$)", fontsize=9)
     ax[0].text(0.03, 0.05, f"N={n:,}", transform=ax[0].transAxes, fontsize=8)
     for a in ax:
         a.set_xlim(c.ager)
@@ -615,7 +615,9 @@ def plot_age_feh_xd(cache=DEFAULT_CACHE, outdir=DEFAULT_OUTDIR, model_path=None)
         a.set_xlabel("Age, Gyr")
     for a in ax[::2]:
         a.set_ylabel("[Fe/H]")
-    return save(fig, outdir, "eos_age_feh_xd")
+    if note:
+        fig.suptitle(note, fontsize=9)
+    return save(fig, outdir, output_name)
 
 
 @figure("eos_age_feh_xd_deconvolved")
