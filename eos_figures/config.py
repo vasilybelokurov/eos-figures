@@ -81,3 +81,5 @@ class Cuts:
     mm_rapo2: tuple[float, float] = (7, 15)
     npix_ecc: int = 71
     nage: int = 60
+    fehr_age: tuple[float, float] = (-1.5, 0.4)
+    nfeh_age: int = 42

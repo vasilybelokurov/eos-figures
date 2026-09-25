@@ -6,3 +6,4 @@ data/eos_apogee_dr17_lite_ann.fits
 overleaf-paper/
 __pycache__/
 *.pyc
+products/

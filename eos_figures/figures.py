@@ -556,10 +556,10 @@ def plot_age_feh_density(cache=DEFAULT_CACHE, outdir=DEFAULT_OUTDIR):
     cat, c, m = load_context(cache)
     fig, ax = setup_axes(1, figsize=(4.5, 3.6))
     w = m["base_age"]
-    h, xe, ye = hist2d(cat["age"][w], cat["fe_h"][w], c.ager, c.fehr, c.nage, c.nfeh)
+    h, xe, ye = hist2d(cat["age"][w], cat["fe_h"][w], c.ager, c.fehr_age, c.nage, c.nfeh_age)
     density_panel(ax[0], h, xe, ye, percentiles=c.perc1)
     ax[0].set_xlim(c.ager)
-    ax[0].set_ylim(c.fehr)
+    ax[0].set_ylim(c.fehr_age)
     ax[0].text(0.03, 0.05, f"N={w.sum():,}", transform=ax[0].transAxes, fontsize=8)
     label_axes(
         ax[0],
