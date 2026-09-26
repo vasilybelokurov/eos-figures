@@ -688,13 +688,20 @@ def plot_age_err_dist(cache=DEFAULT_CACHE, outdir=DEFAULT_OUTDIR):
 
 
 @figure("eos_age_err_consistency")
-def plot_age_err_consistency(cache=DEFAULT_CACHE, outdir=DEFAULT_OUTDIR):
-    """Observed age scatter vs quoted errors per [Fe/H] bin (additive-noise test)."""
+def plot_age_err_consistency(cache=DEFAULT_CACHE, outdir=DEFAULT_OUTDIR, age_cut=True, output_name="eos_age_err_consistency"):
+    """Observed age scatter vs quoted errors per [Fe/H] bin (additive-noise test).
+
+    ``age_cut=False`` uses all finite-age stars (no sigma_model/age selection).
+    """
     cat, c, m = load_context(cache)
+    if not age_cut:
+        fin = m["base_agefin"]
+        m = dict(m, base_age=fin, thick_age=m["thick"] & fin, thin_age=m["thin"] & fin)
     edges = np.arange(-1.0, 0.61, 0.1)
     cen = 0.5 * (edges[:-1] + edges[1:])
     fig, ax = setup_axes(3, figsize=(11, 3.4), sharey=True)
-    for a, (name, title) in zip(ax, [("base_age", "all good-age stars"), ("thick_age", r"high-$\alpha$"), ("thin_age", r"low-$\alpha$")]):
+    first = "all good-age stars" if age_cut else "all finite-age stars (no age cut)"
+    for a, (name, title) in zip(ax, [("base_age", first), ("thick_age", r"high-$\alpha$"), ("thin_age", r"low-$\alpha$")]):
         w = m[name]
         sd, rt, rm = (np.full(len(cen), np.nan) for _ in range(3))
         for i in range(len(cen)):
@@ -709,8 +716,13 @@ def plot_age_err_consistency(cache=DEFAULT_CACHE, outdir=DEFAULT_OUTDIR):
         a.set_xlim(edges[0], edges[-1])
         a.set_ylim(0, 3.5)
         label_axes(a, "[Fe/H]", "Gyr" if a is ax[0] else "", title)
-    ax[0].legend(frameon=False, fontsize=8, loc="lower center")
-    return save(fig, outdir, "eos_age_err_consistency")
+    ax[0].legend(frameon=False, fontsize=7, loc="lower left")
+    return save(fig, outdir, output_name)
+
+
+@figure("eos_age_err_consistency_nocut")
+def plot_age_err_consistency_nocut(cache=DEFAULT_CACHE, outdir=DEFAULT_OUTDIR):
+    return plot_age_err_consistency(cache, outdir, age_cut=False, output_name="eos_age_err_consistency_nocut")
 
 
 @figure("eos_age_feh_xd_stability")
