@@ -757,3 +757,22 @@ def plot_age_feh_xd_stability(cache=DEFAULT_CACHE, outdir=DEFAULT_OUTDIR, run_di
     for a in ax[:, 0]:
         a.set_ylabel("[Fe/H]")
     return save(fig, outdir, "eos_age_feh_xd_stability")
+
+
+@figure("eos_age_feh_pops")
+def plot_age_feh_pops(cache=DEFAULT_CACHE, outdir=DEFAULT_OUTDIR, age_mask="base_agefin"):
+    """Age-[Fe/H] density for high-alpha, low-alpha and accreted (GS/E) stars, side by side."""
+    cat, c, m = load_context(cache)
+    pops = [("thick", r"high-$\alpha$"), ("thin", r"low-$\alpha$"), ("acc", "accreted (GS/E)")]
+    fig, ax = setup_axes(3, figsize=(11, 3.6), sharex=True, sharey=True)
+    for a, (name, title) in zip(ax, pops):
+        w = m[name] & m[age_mask]
+        coarse = 2 if w.sum() < 10000 else 1  # halve the resolution for sparse populations
+        h, xe, ye = hist2d(cat["age"][w], cat["fe_h"][w], c.ager, c.fehr, c.nage // coarse, c.nfeh // coarse)
+        density_panel(a, h, xe, ye, percentiles=c.perc1)
+        note = f"N={w.sum():,}" + (" (2x coarser bins)" if coarse > 1 else "")
+        a.text(0.03, 0.05, note, transform=a.transAxes, fontsize=8)
+        a.set_xlim(c.ager)
+        a.set_ylim(c.fehr)
+        label_axes(a, "Age, Gyr", "[Fe/H]" if a is ax[0] else "", title)
+    return save(fig, outdir, "eos_age_feh_pops")
