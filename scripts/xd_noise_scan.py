@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Stage A: scan the age-noise scale s and the age coordinate at fixed K.
+"""Scan the age-noise scale s, the age coordinate and K (Stages A and B).
 
 For each (coord, s) the XD model is fitted by 5-fold cross-validation on the
 no-cut sample ``base_agefin``. Per-star held-out log densities are stored so that
@@ -9,7 +9,8 @@ directly: ln p(age, feh) = ln p(ln age, feh) - ln age.
 
 Usage
 -----
-  python scripts/xd_noise_scan.py run               # all jobs, parallel, resumable
+  python scripts/xd_noise_scan.py run               # Stage A grid at K=12
+  python scripts/xd_noise_scan.py run --coords log --scales 0.25 0.3 0.4 --ks 8 10 12 14 16 18 20 24 28   # Stage B
   python scripts/xd_noise_scan.py summary           # table + diagnostics
 """
 from __future__ import annotations
@@ -57,32 +58,33 @@ def folds(n):
     return np.random.default_rng(0).permutation(n) % N_FOLDS
 
 
-def tag(coord, s):
-    return f"{coord}_s{s:.2f}"
+def tag(coord, s, k=K):
+    return f"{coord}_s{s:.2f}_K{k:02d}"
 
 
-def job(cache, coord, s, fold):
+def job(cache, coord, s, fold, k=K):
     t0 = time.time()
     x, cov, meta = data(cache, coord, s)
     f = folds(len(x))
     tr, va = f != fold, f == fold
-    res = fit_xd(x[tr], cov[tr], n_components=K, seed=17 * fold + K, **FIT_KW)
+    res = fit_xd(x[tr], cov[tr], n_components=k, seed=17 * fold + k, **FIT_KW)
     lp = res.mixture.log_prob(x[va], cov[va]) + meta["log_jacobian"][va]
     # names contain dots (s0.40): build paths explicitly, never with Path.with_suffix
-    name = f"{tag(coord, s)}_f{fold}"
+    name = f"{tag(coord, s, k)}_f{fold}"
     np.savez_compressed(OUT / f"{name}.npz", idx=np.flatnonzero(va), lp=lp)
-    out = {"coord": coord, "scale": s, "fold": fold, "k": K, "n_iter": res.n_iter, "converged": res.converged,
+    out = {"coord": coord, "scale": s, "fold": fold, "k": k, "n_iter": res.n_iter, "converged": res.converged,
            "train_mean_loglike": res.mean_loglike, "val_mean_logp_age_feh": float(lp.mean()),
            "mixture": res.mixture.to_dict(), "seconds": time.time() - t0}
     (OUT / f"{name}.json").write_text(json.dumps(out))
     return name, out
 
 
-def run(cache, workers, coords=COORDS, scales=SCALES):
+def run(cache, workers, coords=COORDS, scales=SCALES, ks=(K,)):
     OUT.mkdir(parents=True, exist_ok=True)
-    jobs = [(cache, c, s, f) for c in coords for s in scales for f in range(N_FOLDS)
-            if not (OUT / f"{tag(c, s)}_f{f}.json").exists()]
-    n_all = len(coords) * len(scales) * N_FOLDS
+    jobs = [(cache, c, s, f, k) for c in coords for s in scales for k in ks for f in range(N_FOLDS)
+            if not (OUT / f"{tag(c, s, k)}_f{f}.json").exists()]
+    jobs.sort(key=lambda j: -j[4])  # largest K first for load balancing
+    n_all = len(coords) * len(scales) * len(ks) * N_FOLDS
     print(f"{n_all} jobs, {n_all - len(jobs)} done, running {len(jobs)} on {workers} workers", flush=True)
     with ProcessPoolExecutor(max_workers=workers) as ex:
         futs = [ex.submit(job, *j) for j in jobs]
@@ -119,11 +121,11 @@ def diagnostics(cache, coord, s, mix):
 
 
 def summary(cache):
-    cfgs = sorted({(j.name.split("_s")[0], float(j.name.split("_s")[1].split("_f")[0]))
+    cfgs = sorted({(j.name.split("_s")[0], float(j.name.split("_s")[1].split("_K")[0]), int(j.name.split("_K")[1].split("_f")[0]))
                    for j in OUT.glob("*_f0.json")})
     lp_all, info = {}, {}
-    for c, s in cfgs:
-        files = [OUT / f"{tag(c, s)}_f{f}.npz" for f in range(N_FOLDS)]
+    for c, s, k in cfgs:
+        files = [OUT / f"{tag(c, s, k)}_f{f}.npz" for f in range(N_FOLDS)]
         if not all(p.exists() for p in files):
             continue
         n = sum(len(np.load(p)["idx"]) for p in files)
@@ -131,9 +133,9 @@ def summary(cache):
         for p in files:
             d = np.load(p)
             lp[d["idx"]] = d["lp"]
-        lp_all[(c, s)] = lp
-        js = [json.loads((OUT / f"{tag(c, s)}_f{f}.json").read_text()) for f in range(N_FOLDS)]
-        info[(c, s)] = {"converged": all(j["converged"] for j in js), "mix0": GaussianMixture.from_dict(js[0]["mixture"])}
+        lp_all[(c, s, k)] = lp
+        js = [json.loads((OUT / f"{tag(c, s, k)}_f{f}.json").read_text()) for f in range(N_FOLDS)]
+        info[(c, s, k)] = {"converged": all(j["converged"] for j in js), "mix0": GaussianMixture.from_dict(js[0]["mixture"])}
     if not lp_all:
         raise SystemExit("no complete configurations yet")
     best = max(lp_all, key=lambda k: lp_all[k].mean())
@@ -143,12 +145,13 @@ def summary(cache):
     for key in sorted(lp_all):
         d = lp_all[key] - lp_all[best]
         se = float(d.std(ddof=1) / np.sqrt(len(d)))
-        chi2, widths = diagnostics(cache, *key, info[key]["mix0"])
+        chi2, widths = diagnostics(cache, key[0], key[1], info[key]["mix0"])
         wtxt = "  ".join(f"{k}:{v[0]:.2f}/{v[1]:.2f}" for k, v in widths.items())
         print(f"{tag(*key):12s} {lp_all[key].mean():9.5f} {d.mean():+10.5f} {se:9.5f} {str(info[key]['converged']):>5s} {chi2:8.2f}  {wtxt}")
-        rows.append({"coord": key[0], "scale": key[1], "cv_mean": float(lp_all[key].mean()), "d_vs_best": float(d.mean()),
+        rows.append({"coord": key[0], "scale": key[1], "k": key[2], "cv_mean": float(lp_all[key].mean()), "d_vs_best": float(d.mean()),
                      "paired_se": se, "converged": info[key]["converged"], "chi2_per_bin_fold0": chi2, "age_std_data_model": widths})
-    (OUT / "summary.json").write_text(json.dumps({"best": tag(*best), "k": K, "mask": MASK, "rows": rows}, indent=1))
+    (OUT / "summary.json").write_text(json.dumps({"best": tag(*best), "best_coord": best[0], "best_scale": best[1],
+                                                   "best_k": best[2], "mask": MASK, "rows": rows}, indent=1))
 
 
 def main() -> None:
@@ -158,8 +161,9 @@ def main() -> None:
     p.add_argument("--workers", type=int, default=12)
     p.add_argument("--coords", nargs="+", default=list(COORDS))
     p.add_argument("--scales", nargs="+", type=float, default=list(SCALES))
+    p.add_argument("--ks", nargs="+", type=int, default=[K])
     a = p.parse_args()
-    run(a.cache, a.workers, a.coords, a.scales) if a.command == "run" else summary(a.cache)
+    run(a.cache, a.workers, a.coords, a.scales, a.ks) if a.command == "run" else summary(a.cache)
 
 
 if __name__ == "__main__":
